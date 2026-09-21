@@ -1,0 +1,89 @@
+/* ---------------------------------------------------------------------------
+ * funds.css —— 资金账户与转账（账户卡片、净资产、转账/还款、账户编辑弹窗）
+ * 复用 styles.css 的设计变量，仅在 index.html 额外引入本文件。
+ * ------------------------------------------------------------------------- */
+
+/* ---------- 工具栏 ---------- */
+.funds-toolbar { gap: 12px; margin-bottom: 4px; }
+.funds-toolbar .muted { font-size: 12px; }
+
+/* ---------- 账户卡片网格 ---------- */
+.fund-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
+  gap: 12px;
+}
+.fund-grid .empty-state { grid-column: 1 / -1; }
+
+.fund-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.fund-card:hover {
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.08);
+  border-color: #d8dbe0;
+}
+
+.fund-top { display: flex; align-items: center; gap: 10px; }
+.fund-ic {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 21px;
+  background: var(--brand-weak);
+  border-radius: 11px;
+}
+.fund-card.is-liab .fund-ic { background: #fff1f1; }
+.fund-meta { min-width: 0; }
+.fund-name {
+  font-weight: 700;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fund-type { font-size: 11px; color: var(--ink-2); margin-top: 2px; }
+
+.fund-amount { font-size: 21px; font-weight: 700; line-height: 1.2; }
+.fund-amount.income { color: var(--income); }
+.fund-amount.expense { color: var(--expense); }
+
+.fund-sub { font-size: 11px; color: var(--ink-2); line-height: 1.6; }
+
+.fund-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.fund-card-actions .btn { flex: 1; }
+
+/* ---------- 账户编辑 / 转账 弹窗 ---------- */
+#account-edit-mask .modal,
+#transfer-mask .modal { width: 400px; }
+
+#account-edit-mask label,
+#transfer-mask label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-bottom: 12px;
+}
+
+#account-edit-mask label .xselect,
+#transfer-mask label .xselect { width: 100%; }
+
+#cc-fields .cfg-row { gap: 12px; margin-bottom: 10px; }
+#cc-fields .cfg-row label { flex: 1; margin-bottom: 0; }

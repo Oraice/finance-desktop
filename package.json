@@ -1,0 +1,74 @@
+{
+  "name": "caizhangbu",
+  "productName": "财账簿",
+  "version": "0.1.0",
+  "description": "本地运行的财务效率桌面应用 —— 数据全程不出本机",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke",
+    "e2e": "electron . --e2e",
+    "test": "node test/run-all.mjs",
+    "dist": "electron-builder"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "echarts": "^5.6.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^26.15.3",
+    "xlsx": "^0.18.5"
+  },
+  "build": {
+    "appId": "com.caizhangbu.desktop",
+    "productName": "财账簿",
+    "copyright": "Copyright © 2026 财账簿",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "auth-core.cjs",
+      "backup-core.cjs",
+      "settings-core.cjs",
+      "file-store.cjs",
+      "crash-reporter.cjs",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "caizhangbu-setup-${version}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "财账簿"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Oraice",
+        "repo": "finance-desktop"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}

@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>财账簿 · 本地财务效率</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="funds.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- 左侧：账本列表 -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-logo brand-glyph" id="brand-logo">🦞</span>
+        <div>
+          <div class="brand-name" id="brand-name">财账簿</div>
+          <div class="brand-sub">数据仅存本机</div>
+        </div>
+      </div>
+
+      <button id="btn-new-ledger" class="btn btn-primary btn-block">＋ 新建账本</button>
+
+      <div class="sidebar-label">我的账本</div>
+      <nav id="ledger-list" class="ledger-list"><!-- JS 渲染 --></nav>
+
+      <div class="account-box">
+        <button class="account-profile" id="btn-profile" hidden>
+          <span class="avatar" id="acct-avatar">?</span>
+          <span class="account-profile-text">
+            <b id="acct-label">用户名</b>
+            <small>点击编辑资料</small>
+          </span>
+        </button>
+        <span class="account-actions" id="acct-actions" hidden>
+          <button class="btn btn-sm" id="btn-logout">退出</button>
+        </span>
+      </div>
+      <div class="storage-path" id="storage-hint">存储目录：本机用户数据目录</div>
+    </aside>
+
+    <!-- 右侧：主内容 -->
+    <main class="main">
+      <header class="topbar">
+        <h1 id="ledger-title">请选择或创建一个账本</h1>
+        <div class="topbar-actions">
+          <button id="btn-rename" class="btn" hidden>重命名</button>
+          <button id="btn-delete" class="btn btn-danger" hidden>删除账本</button>
+        </div>
+      </header>
+
+      <nav class="tabs">
+        <button class="tab active" data-tab="dashboard">看板</button>
+        <button class="tab" data-tab="records">流水</button>
+        <button class="tab" data-tab="funds">账户</button>
+        <button class="tab" data-tab="year">年度</button>
+        <button class="tab" data-tab="summary">汇总</button>
+        <button class="tab" data-tab="import">导入</button>
+        <button class="tab" data-tab="export">报表</button>
+      </nav>
+
+      <section class="content">
+        <!-- 看板 -->
+        <div class="panel" id="panel-dashboard">
+          <div class="dash-toolbar">
+            <label>时间范围
+              <select id="dash-range">
+                <option value="all">全部</option>
+                <option value="month">本月</option>
+                <option value="last3">近 3 个月</option>
+                <option value="half">近 6 个月</option>
+                <option value="year">本年</option>
+              </select>
+            </label>
+          </div>
+          <div class="cards">
+            <div class="card"><div class="card-label">总收入</div><div class="card-value income" id="sum-income">¥0.00</div></div>
+            <div class="card"><div class="card-label">总支出</div><div class="card-value expense" id="sum-expense">¥0.00</div></div>
+            <div class="card"><div class="card-label">结余</div><div class="card-value" id="sum-balance">¥0.00</div></div>
+          </div>
+          <div class="cfg-card chain-card-wrap" id="chain-card-wrap">
+            <div id="chain-card"><!-- JS 渲染本月 vs 上月环比 --></div>
+          </div>
+          <div class="cfg-card budget-card" id="budget-card-wrap">
+            <div id="budget-card"><!-- JS 渲染本月预算进度 --></div>
+          </div>
+          <div class="charts-grid">
+            <div class="cfg-card">
+              <div class="cfg-title">📈 月度收支趋势（近 12 个月）</div>
+              <div id="chart-trend" class="chart"></div>
+            </div>
+            <div class="cfg-card">
+              <div class="cfg-title">🥧 支出分类占比</div>
+              <div id="chart-cat" class="chart"></div>
+            </div>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">🔥 主要支出 TOP 8</div>
+            <table class="data-table">
+              <thead><tr><th>日期</th><th>分类</th><th>金额</th><th>备注</th><th>来源</th></tr></thead>
+              <tbody id="top-expense-tbody"></tbody>
+            </table>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">📅 记账日历热力图（全年按天支出）</div>
+            <div id="cal-heatmap" class="cal-heatmap"></div>
+          </div>
+        </div>
+
+        <!-- 流水 -->
+        <div class="panel hidden" id="panel-records">
+          <div id="records-empty" class="empty-state">
+            <div class="empty-icon">🧾</div>
+            <div class="empty-title">还没有流水</div>
+            <div class="empty-desc">记下第一笔收支，看板会自动生成趋势、分类占比与日历热力图；也可以导入 Excel 或先看演示数据。</div>
+            <button type="button" class="btn btn-primary empty-action" id="btn-empty-add">＋ 手动记一笔</button>
+            <div class="empty-secondary">
+              <button class="btn btn-sm" id="btn-demo">生成演示数据</button>
+              <button class="btn btn-sm" id="btn-demo-clear">清空流水</button>
+            </div>
+          </div>
+          <div id="records-ui" class="hidden">
+            <div class="rec-toolbar">
+              <button class="btn btn-primary" id="btn-add-record">＋ 补录流水</button>
+              <button class="btn" id="btn-recurring">🔁 周期记账</button>
+              <select id="flt-type">
+                <option value="all">全部类型</option>
+                <option value="income">收入</option>
+                <option value="expense">支出</option>
+              </select>
+              <select id="flt-cat"><option value="all">全部分类</option></select>
+              <select id="flt-sort">
+                <option value="date-desc">日期 · 最新优先</option>
+                <option value="date-asc">日期 · 最早优先</option>
+                <option value="amount-desc">金额 · 从大到小</option>
+                <option value="amount-asc">金额 · 从小到大</option>
+              </select>
+              <input type="search" id="flt-kw" placeholder="搜索备注 / 分类…" />
+              <button class="btn" id="btn-flt-reset">重置</button>
+              <span class="muted" id="rec-stat"></span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th class="col-idx">#</th><th>日期</th><th>收支</th><th>分类</th><th>账户</th><th>金额</th><th>备注</th><th>来源</th><th>操作</th></tr></thead>
+                <tbody id="records-tbody"></tbody>
+              </table>
+            </div>
+            <div class="pager">
+              <button class="btn btn-sm" id="pg-prev">‹ 上一页</button>
+              <span id="pg-info">第 1 / 1 页</span>
+              <button class="btn btn-sm" id="pg-next">下一页 ›</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 资金账户 -->
+        <div class="panel hidden" id="panel-funds">
+          <div class="funds-toolbar cfg-row">
+            <button class="btn btn-primary" id="btn-add-account">＋ 新建账户</button>
+            <button class="btn" id="btn-transfer">⇄ 转账 / 还款</button>
+            <span class="muted" id="funds-hint"></span>
+          </div>
+          <div class="cards">
+            <div class="card"><div class="card-label">总资产</div><div class="card-value income" id="nw-assets">¥0.00</div></div>
+            <div class="card"><div class="card-label">总负债</div><div class="card-value expense" id="nw-debts">¥0.00</div></div>
+            <div class="card"><div class="card-label">净资产</div><div class="card-value" id="nw-net">¥0.00</div></div>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">💼 资产账户</div>
+            <div class="fund-grid" id="asset-grid"><!-- JS 渲染资产账户卡 --></div>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">💳 信用卡与负债</div>
+            <div class="fund-grid" id="liability-grid"><!-- JS 渲染负债账户卡 --></div>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">🔁 转账 / 还款记录</div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>日期</th><th>转出</th><th>转入</th><th>金额</th><th>备注</th><th>操作</th></tr></thead>
+                <tbody id="transfer-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 年度账单 -->
+        <div class="panel hidden" id="panel-year">
+          <div class="year-toolbar cfg-row">
+            <label>统计年份 <select id="yr-year"><!-- JS 填充年份 --></select></label>
+            <span class="muted" id="yr-meta"></span>
+          </div>
+          <div class="cards">
+            <div class="card"><div class="card-label">年度总收入</div><div class="card-value income" id="yr-income">¥0</div></div>
+            <div class="card"><div class="card-label">年度总支出</div><div class="card-value expense" id="yr-expense">¥0</div></div>
+            <div class="card"><div class="card-label">年度结余</div><div class="card-value" id="yr-balance">¥0</div></div>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">📊 与上年同比</div>
+            <table class="data-table">
+              <thead><tr><th>项目</th><th>今年</th><th>去年</th><th>变化</th></tr></thead>
+              <tbody id="yr-yoy-tbody"></tbody>
+            </table>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">📆 各月收支</div>
+            <div id="yr-months-chart" class="chart" style="height:300px"></div>
+          </div>
+          <div class="year-two-col">
+            <div class="cfg-card">
+              <div class="cfg-title">🥧 年度支出分类</div>
+              <div id="yr-cat-chart" class="chart" style="height:300px"></div>
+            </div>
+            <div class="cfg-card">
+              <div class="cfg-title">🏆 年度大额支出 TOP 10</div>
+              <table class="data-table">
+                <thead><tr><th>日期</th><th>分类</th><th>金额</th><th>备注</th></tr></thead>
+                <tbody id="yr-top-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">🧾 年度概览</div>
+            <div class="muted" id="yr-overview"></div>
+          </div>
+        </div>
+
+        <!-- 多账本汇总 -->
+        <div class="panel hidden" id="panel-summary">
+          <div class="cfg-card">
+            <div class="cfg-title">📚 全部账本收支</div>
+            <table class="data-table">
+              <thead><tr><th>账本</th><th>收入</th><th>支出</th><th>结余</th><th>笔数</th></tr></thead>
+              <tbody id="sm-tbody"></tbody>
+              <tfoot id="sm-foot"></tfoot>
+            </table>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">📈 跨账本月度趋势（近 12 个月）</div>
+            <div id="sm-trend-chart" class="chart" style="height:320px"></div>
+          </div>
+          <div class="cfg-card">
+            <div class="cfg-title">🥧 跨账本支出分类占比</div>
+            <div id="sm-cat-chart" class="chart" style="height:340px"></div>
+          </div>
+        </div>
+
+        <!-- 导入 -->
+        <div class="panel hidden" id="panel-import">
+          <div class="import-zone" id="import-zone">
+            <div class="import-zone-icon">📥</div>
+            <div>点击选择或拖拽 Excel 文件到此处
+              <div class="muted">支持 .xlsx / .xls · 自动识别日期 / 收支 / 金额 / 分类列 · 识别结果需您确认后才会入库</div>
+            </div>
+            <input type="file" id="file-input" accept=".xlsx,.xls" hidden />
+          </div>
+          <div class="modal-error" id="import-error"></div>
+
+          <div id="import-config" class="hidden">
+            <div class="cfg-card">
+              <div class="cfg-title" id="import-file-title"></div>
+              <div class="cfg-row">
+                <label>工作表 <select id="sel-sheet"></select></label>
+                <label>表头所在行 <input type="number" id="inp-header-row" min="1" value="1" /></label>
+              </div>
+              <div class="cfg-row">
+                <label>金额模式
+                  <select id="sel-mode">
+                    <option value="twoCol">收入 / 支出 分两列</option>
+                    <option value="signed">单列带符号（正收负支）</option>
+                    <option value="typeCol">类型列 + 金额列</option>
+                  </select>
+                </label>
+              </div>
+              <div class="cfg-grid">
+                <label id="row-map-date">日期列 <select id="map-date"></select></label>
+                <label id="row-map-income">收入列 <select id="map-income"></select></label>
+                <label id="row-map-expense">支出列 <select id="map-expense"></select></label>
+                <label id="row-map-amount" class="hidden">金额列 <select id="map-amount"></select></label>
+                <label id="row-map-type" class="hidden">类型列 <select id="map-type"></select></label>
+                <label id="row-map-category">分类列 <select id="map-category"></select></label>
+                <label id="row-map-note">备注列 <select id="map-note"></select></label>
+              </div>
+            </div>
+
+            <div class="cfg-card">
+              <div class="cfg-title">预览（前 8 条）</div>
+              <div id="import-preview"></div>
+              <div class="cfg-row cfg-actions">
+                <span id="import-summary"></span>
+                <button class="btn btn-primary" id="btn-import-confirm" disabled>确认导入</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cfg-card" id="import-history-wrap">
+            <div class="cfg-title">本账本导入历史</div>
+            <div id="import-history" class="muted">暂无</div>
+          </div>
+        </div>
+
+        <!-- 报表 -->
+        <div class="panel hidden" id="panel-export">
+          <div class="cfg-card">
+            <div class="cfg-title">🔄 关于与更新</div>
+            <div class="cfg-row cfg-actions">
+              <span class="muted" id="upd-meta">当前版本 v0.1.0 · 数据仅存本机</span>
+              <button type="button" class="btn" id="btn-replay-onboarding">📖 新手引导</button>
+              <button type="button" class="btn" id="btn-reminders">🔔 账单 / 还款提醒</button>
+              <button type="button" class="btn" id="btn-check-update">检查更新</button>
+            </div>
+          </div>
+
+          <div class="cfg-card">
+            <div class="cfg-title">🎨 应用个性化（名称与 Logo）</div>
+            <p class="muted" style="margin-bottom:12px">自定义软件显示名称和品牌图片，侧边栏、登录页、窗口标题与任务栏图标会同步更换；设置仅保存在本机。</p>
+            <div class="appearance-row">
+              <button type="button" class="app-logo-preview brand-glyph" id="ap-logo">🦞</button>
+              <div class="appearance-fields">
+                <label>应用名称 <input type="text" id="ap-name" maxlength="20" /></label>
+                <div class="appearance-btns">
+                  <button type="button" class="btn" id="ap-btn-logo">上传 Logo 图片</button>
+                  <button type="button" class="btn" id="ap-btn-remove">恢复默认 Logo</button>
+                </div>
+              </div>
+            </div>
+            <div class="modal-error" id="ap-error"></div>
+            <div class="cfg-row cfg-actions">
+              <span class="muted">Logo 自动居中裁剪为正方形，建议使用方形图片</span>
+              <button type="button" class="btn btn-primary" id="ap-save">保存设置</button>
+            </div>
+          </div>
+
+          <div class="cfg-card">
+            <div class="cfg-title">🩺 诊断与崩溃记录</div>
+            <p class="muted" style="margin-bottom:12px">程序异常时，默认仅在本机记录「错误信息、堆栈、应用版本、操作系统」用于排查，<b>不会记录账户、账本、金额或密码</b>，也不会联网。可在此关闭本地记录；自动上报默认关闭，需显式开启并填写接收地址。</p>
+            <div class="diag-switches">
+              <label class="switch-row">
+                <input type="checkbox" id="cz-local" checked />
+                <span>在本机记录崩溃日志（userData/crashes）</span>
+              </label>
+              <label class="switch-row">
+                <input type="checkbox" id="cz-upload" />
+                <span>自动上报崩溃报告（默认关闭）</span>
+              </label>
+              <div class="diag-endpoint">
+                <label>上报地址（https，留空则不发送）
+                  <input type="text" id="cz-endpoint" placeholder="https://example.com/crash" />
+                </label>
+              </div>
+            </div>
+            <div class="cfg-row cfg-actions">
+              <span class="muted" id="cz-count">崩溃记录 0 条</span>
+              <span class="diag-btns">
+                <button type="button" class="btn" id="cz-view">查看记录</button>
+                <button type="button" class="btn" id="cz-clear">清空记录</button>
+                <button type="button" class="btn btn-primary" id="cz-save">保存诊断设置</button>
+              </span>
+            </div>
+          </div>
+
+          <div class="cfg-card">
+            <div class="cfg-title">🛡️ 数据备份与恢复</div>
+            <p class="muted" style="margin-bottom:12px">数据全部存在本机，为防重装、换机或误删，请定期备份。备份内容包含所有账户、账本与流水，可设置密码加密（AES-256-GCM）。应用每次启动还会自动备份最近 5 份到本机用户数据目录。</p>
+            <div class="cfg-row cfg-actions">
+              <span class="muted">备份文件后缀 .finbak，恢复前会自动再备份一次当前数据</span>
+              <span class="backup-btns">
+                <button class="btn btn-primary" id="btn-backup">备份数据…</button>
+                <button class="btn" id="btn-restore">恢复数据…</button>
+              </span>
+            </div>
+          </div>
+
+          <div class="cfg-card">
+            <div class="cfg-title">📤 导出 Excel 财务报表</div>
+            <p class="muted" style="margin-bottom:12px">生成三张工作表：<b>月度汇总</b>（收支结余）· <b>分类占比</b>（支出/收入）· <b>收支明细</b>。点击后经系统"另存为"选择位置，全程本机完成。</p>
+            <div class="cfg-row">
+              <label>明细表筛选 <select id="x-type">
+                <option value="all">全部收支</option>
+                <option value="income">仅收入</option>
+                <option value="expense">仅支出</option>
+              </select></label>
+            </div>
+            <div class="cfg-row cfg-actions">
+              <span id="export-meta" class="muted"></span>
+              <button class="btn btn-primary" id="btn-export" disabled>导出报表…</button>
+            </div>
+            <div class="modal-error" id="export-status"></div>
+          </div>
+
+          <div class="cfg-card">
+            <div class="cfg-title">📄 导出 PDF 月报</div>
+            <p class="muted" style="margin-bottom:12px">生成图文并茂的 A4 月度财务报告：核心指标、收支环比、分类支出、预算执行与趋势图表，可直接存档或打印。</p>
+            <div class="cfg-row">
+              <label>报告月份 <select id="pdf-month"><!-- JS 填充近 12 个月 --></select></label>
+              <button class="btn btn-primary" id="btn-pdf">生成并导出 PDF…</button>
+            </div>
+            <div class="modal-error" id="pdf-status"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 通用文本输入 / 确认弹窗（Electron 不支持 window.prompt/confirm，用自绘模态框替代） -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="modal-mask">
+    <div class="modal">
+      <div class="modal-title" id="modal-title">输入</div>
+      <input type="text" id="modal-input" maxlength="30" autocomplete="off" />
+      <div class="modal-message hidden" id="modal-message"></div>
+      <div class="modal-error" id="modal-error"></div>
+      <div class="modal-actions">
+        <button class="btn" id="modal-cancel">取消</button>
+        <button class="btn btn-primary" id="modal-ok">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 消息提示弹窗（自绘，替代系统原生 alert） -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="notice-mask">
+    <div class="modal notice-modal">
+      <span class="notice-icon" id="notice-icon">i</span>
+      <div class="modal-title" id="notice-title">提示</div>
+      <div class="notice-body" id="notice-body"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-block" id="notice-ok">知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 法律文档查看弹窗（用户协议 / 隐私政策） -->
+  <div class="modal-mask hidden" id="legal-mask" role="dialog" aria-modal="true" aria-label="法律文档">
+    <div class="modal modal-lg legal-modal">
+      <div class="legal-bar">
+        <span class="modal-title" id="legal-title">文档</span>
+        <button type="button" class="btn btn-sm" id="legal-close">关闭</button>
+      </div>
+      <iframe id="legal-frame" title="法律文档"></iframe>
+    </div>
+  </div>
+
+  <!-- 流水补录 / 编辑表单弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="form-mask">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title" id="form-title">补录流水</div>
+        <button type="button" class="modal-close" id="form-x" aria-label="关闭">✕</button>
+      </div>
+      <div class="form-grid">
+        <label>日期 <input type="date" id="form-date" /></label>
+        <label>收支类型
+          <!-- Electron 在 Win11 弹层内渲染原生 select 不稳定，改用自绘分段开关 -->
+          <span class="seg" id="form-type-seg">
+            <button type="button" class="seg-btn active" data-type="expense">支出</button>
+            <button type="button" class="seg-btn" data-type="income">收入</button>
+          </span>
+        </label>
+        <label>金额 <input type="number" id="form-amount" min="0.01" step="0.01" placeholder="0.00" /></label>
+        <label>资金账户
+          <select id="form-account"><!-- JS 填充 --></select>
+        </label>
+        <label>分类 <input type="text" id="form-category" placeholder="点选下方芯片或自由输入" /></label>
+        <label class="form-full">常用分类
+          <span class="cat-chips" id="cat-chips"><!-- JS 渲染分类芯片 --></span>
+        </label>
+        <label class="form-full" id="form-advance-wrap" hidden>
+          <span class="form-check"><input type="checkbox" id="form-advance" /> 标记为代垫（替他人 / 公司先付，待报销，不计入我的支出）</span>
+        </label>
+        <label class="form-full">备注 <input type="text" id="form-note" placeholder="选填" /></label>
+      </div>
+      <div class="modal-error" id="form-error"></div>
+      <div class="modal-actions">
+        <button class="btn" id="form-cancel">取消</button>
+        <button class="btn btn-primary" id="form-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登录门：覆盖全屏，账户校验通过后才隐藏（本机账户，数据不出网） -->
+  <div class="auth-mask" id="auth-mask" role="dialog" aria-modal="true" aria-label="账户登录与注册">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="auth-brand-row">
+          <span class="brand-glyph" id="auth-brand-logo">🦞</span>
+          <span id="auth-brand-name">财账簿</span>
+        </span>
+        <span class="auth-sub">数据仅存本机 · 账户验证在本机完成</span>
+      </div>
+      <div class="seg" id="auth-tabs" style="margin:14px 0 18px">
+        <button type="button" class="seg-btn active" data-mode="login">登录</button>
+        <button type="button" class="seg-btn" data-mode="register">注册</button>
+      </div>
+      <div class="auth-field">
+        <label>用户名 <input type="text" id="auth-user" maxlength="20" autocomplete="off" spellcheck="false" /></label>
+        <label>密码 <input type="password" id="auth-pass" maxlength="64" autocomplete="off" /></label>
+        <label id="auth-pass2-wrap" class="hidden">确认密码 <input type="password" id="auth-pass2" maxlength="64" autocomplete="off" /></label>
+        <div class="pw-meter hidden" id="pw-meter">
+          <div class="pw-meter-bar"><i id="pw-meter-fill"></i></div>
+          <span id="pw-meter-text" class="muted">密码强度</span>
+        </div>
+        <label class="auth-remember"><input type="checkbox" id="auth-auto" /> 自动登录（密码经 Windows DPAPI 加密保存在本机）</label>
+      </div>
+      <div class="modal-error" id="auth-error"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-block" id="auth-submit">登 录</button>
+      </div>
+      <div class="auth-agree">
+        登录 / 注册即代表您已阅读并同意
+        <a href="#" data-legal="用户协议" class="legal-link">《用户协议》</a>
+        <a href="#" data-legal="隐私政策" class="legal-link">《隐私政策》</a>
+      </div>
+      <div class="auth-foot muted" id="auth-hint"></div>
+    </div>
+  </div>
+
+  <!-- 修改密码弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="pw-mask">
+    <div class="modal">
+      <div class="modal-title">修改密码</div>
+      <div class="auth-field">
+        <label>原密码 <input type="password" id="pw-old" maxlength="64" autocomplete="off" /></label>
+        <label>新密码 <input type="password" id="pw-new" maxlength="64" autocomplete="off" /></label>
+        <label>确认新密码 <input type="password" id="pw-new2" maxlength="64" autocomplete="off" /></label>
+      </div>
+      <div class="modal-error" id="pw-error"></div>
+      <div class="modal-actions">
+        <button class="btn" id="pw-cancel">取消</button>
+        <button class="btn btn-primary" id="pw-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 崩溃记录列表弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="crash-list-mask">
+    <div class="modal modal-lg">
+      <div class="modal-title">崩溃记录</div>
+      <div class="crash-list-body" id="cl-body"></div>
+      <div class="modal-actions">
+        <button class="btn" id="cl-export">导出为文件…</button>
+        <button class="btn" id="cl-clear">清空</button>
+        <button class="btn btn-primary" id="cl-close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 个人资料编辑弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="profile-mask">
+    <div class="modal profile-modal">
+      <div class="modal-title">编辑个人资料</div>
+
+      <div class="profile-avatar-edit">
+        <button type="button" class="pf-avatar-btn" id="pf-avatar-btn" aria-label="更换头像">
+          <span class="avatar avatar-xl" id="pf-avatar">?</span>
+          <span class="pf-camera-badge">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="#fff" aria-hidden="true"><path d="M9 3l-1.2 2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2.8L15 3H9zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+          </span>
+        </button>
+        <div class="pf-avatar-hint">点击头像更换照片或样式</div>
+      </div>
+
+      <div class="pf-style-panel hidden" id="pf-style-emoji">
+        <div class="pf-style-title">选择表情头像（点已选表情可取消，改用昵称首字）</div>
+        <div class="profile-emoji-pick" id="pf-emojis"><!-- JS 渲染 emoji --></div>
+      </div>
+      <div class="pf-style-panel hidden" id="pf-style-color">
+        <div class="pf-style-title">选择背景颜色</div>
+        <div class="profile-color-pick" id="pf-colors"><!-- JS 渲染色块 --></div>
+      </div>
+
+      <div class="profile-group-title">基本资料</div>
+      <div class="profile-grid">
+        <label class="span-2">登录用户名
+          <span class="pf-username-row">
+            <input type="text" id="pf-username" readonly />
+            <button type="button" class="btn btn-sm" id="pf-btn-username">修改</button>
+          </span>
+        </label>
+        <label>昵称 <input type="text" id="pf-display" maxlength="20" /></label>
+        <label>性别
+          <span class="seg" id="pf-gender">
+            <button type="button" class="seg-btn" data-gender="secret">保密</button>
+            <button type="button" class="seg-btn" data-gender="male">男</button>
+            <button type="button" class="seg-btn" data-gender="female">女</button>
+          </span>
+        </label>
+        <label>生日 <input type="date" id="pf-birthday" /></label>
+        <label>所在城市 <input type="text" id="pf-city" maxlength="20" placeholder="如：成都" /></label>
+        <label class="span-2">职业 <input type="text" id="pf-occupation" maxlength="20" placeholder="如：产品经理" /></label>
+      </div>
+
+      <div class="profile-group-title">联系方式</div>
+      <div class="profile-grid">
+        <label>邮箱 <input type="text" id="pf-email" maxlength="60" placeholder="选填" /></label>
+        <label>手机号 <input type="text" id="pf-phone" maxlength="11" placeholder="选填" /></label>
+        <label class="span-2">个人网站 <input type="text" id="pf-website" maxlength="120" placeholder="https:// 开头，选填" /></label>
+      </div>
+
+      <div class="profile-group-title">财务设置</div>
+      <div class="profile-grid">
+        <label>每月预算（元） <input type="number" id="pf-budget" min="0" step="100" placeholder="0" /></label>
+        <label>财务目标 <input type="text" id="pf-goal" maxlength="50" placeholder="如：年存 10 万" /></label>
+      </div>
+
+      <label class="profile-bio-label">个人简介 <input type="text" id="pf-bio" maxlength="100" placeholder="一句话介绍自己（选填）" /></label>
+
+      <div class="muted" id="pf-created"></div>
+      <div class="modal-error" id="pf-error"></div>
+      <div class="modal-actions profile-actions">
+        <button type="button" class="btn" id="pf-btn-pw">修改密码</button>
+        <span class="profile-spacer"></span>
+        <button type="button" class="btn" id="pf-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="pf-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 头像更换菜单（Telegram 风格 action sheet） -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="avatar-menu-mask">
+    <div class="menu-sheet">
+      <div class="menu-sheet-title">更换头像</div>
+      <button type="button" class="menu-item" id="am-upload">
+        <span class="mi-ic">🖼️</span><span class="mi-tx">上传本地照片</span>
+      </button>
+      <button type="button" class="menu-item" id="am-emoji">
+        <span class="mi-ic">😊</span><span class="mi-tx">选择表情头像</span>
+      </button>
+      <button type="button" class="menu-item" id="am-color">
+        <span class="mi-ic">🎨</span><span class="mi-tx">更换背景颜色</span>
+      </button>
+      <button type="button" class="menu-item menu-danger" id="am-remove">
+        <span class="mi-ic">🗑️</span><span class="mi-tx">删除照片 / 恢复默认</span>
+      </button>
+      <button type="button" class="menu-item menu-cancel" id="am-cancel">取消</button>
+    </div>
+  </div>
+
+  <input type="file" id="avatar-file" accept="image/png,image/jpeg,image/webp" hidden />
+
+  <!-- 头像裁剪弹窗（拖动定位 + 滑块缩放） -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="crop-mask">
+    <div class="modal crop-modal">
+      <div class="modal-title">调整头像照片</div>
+      <div class="crop-stage" id="crop-stage">
+        <img id="crop-img" alt="" draggable="false" />
+      </div>
+      <div class="crop-zoom-row">
+        <span class="crop-zoom-mark">－</span>
+        <input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="1" />
+        <span class="crop-zoom-mark">＋</span>
+      </div>
+      <div class="muted crop-tip">拖动照片调整位置，拖动滑块缩放</div>
+      <div class="modal-actions">
+        <button class="btn" id="crop-cancel">取消</button>
+        <button class="btn btn-primary" id="crop-ok">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 账本设置弹窗（新建 / 重命名 + 图标） -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="ledger-settings-mask">
+    <div class="modal">
+      <div class="modal-title" id="ls-title">账本设置</div>
+      <div class="ls-row">
+        <button type="button" class="ls-icon ledger-glyph" id="ls-icon">📒</button>
+        <div class="ls-fields">
+          <label>账本名称 <input type="text" id="ls-name" maxlength="20" /></label>
+          <div class="ls-btns">
+            <button type="button" class="btn" id="ls-btn-icon">上传图标图片</button>
+            <button type="button" class="btn" id="ls-btn-remove">默认图标</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-error" id="ls-error"></div>
+      <div class="modal-actions">
+        <button class="btn" id="ls-cancel">取消</button>
+        <button class="btn btn-primary" id="ls-ok">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="ledger-icon-file" accept="image/png,image/jpeg,image/webp" hidden />
+  <input type="file" id="app-logo-file" accept="image/png,image/jpeg,image/webp" hidden />
+
+  <!-- 预算编辑弹窗（每月总预算 + 分类预算） -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="budget-edit-mask">
+    <div class="modal budget-edit-modal">
+      <div class="modal-title">预算设置</div>
+      <label class="be-total-label">每月总预算（元）
+        <input type="number" id="be-total" min="0" step="100" placeholder="0" />
+      </label>
+
+      <div class="be-cat-head">分类预算（选填，可细化各分类的月度限额）</div>
+      <div id="be-rows" class="be-rows"><!-- JS 动态渲染分类行 --></div>
+      <button type="button" class="btn btn-sm btn-block" id="be-add">＋ 添加分类预算</button>
+      <div class="be-quick" id="be-quick"><!-- 常用分类快捷（JS 渲染） --></div>
+
+      <div class="modal-error" id="be-error"></div>
+      <div class="modal-actions">
+        <button class="btn" id="be-cancel">取消</button>
+        <button class="btn btn-primary" id="be-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 资金账户 新建 / 编辑弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="account-edit-mask">
+    <div class="modal">
+      <div class="modal-title" id="acct-edit-title">新建账户</div>
+      <label>账户类型
+        <select id="acct-type">
+          <option value="cash">现金</option>
+          <option value="debit">储蓄卡</option>
+          <option value="ewellet">电子钱包</option>
+          <option value="credit">信用卡</option>
+          <option value="debt">负债 / 借贷</option>
+          <option value="investment">投资理财</option>
+        </select>
+      </label>
+      <label>账户名称 <input type="text" id="acct-name" maxlength="10" placeholder="如：招行储蓄卡" /></label>
+      <label id="acct-opening-label"><span id="acct-opening-text">初始金额（元）</span> <input type="number" id="acct-opening" min="0" step="0.01" value="0" /></label>
+
+      <div id="cc-fields" class="hidden">
+        <label>信用额度（元） <input type="number" id="acct-limit" min="1" step="1000" /></label>
+        <div class="cfg-row">
+          <label>账单日（1-31） <input type="number" id="acct-statement" min="1" max="31" /></label>
+          <label>还款日（1-31） <input type="number" id="acct-due" min="1" max="31" /></label>
+        </div>
+      </div>
+
+      <div class="modal-error" id="acct-edit-error"></div>
+      <div class="modal-actions">
+        <button class="btn" id="acct-edit-cancel">取消</button>
+        <button class="btn btn-primary" id="acct-edit-ok">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 转账 / 还款弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" id="transfer-mask">
+    <div class="modal">
+      <div class="modal-title">转账 / 还款</div>
+      <label>转出账户 <select id="tr-from"><!-- JS 填充 --></select></label>
+      <label>转入账户 <select id="tr-to"><!-- JS 填充 --></select></label>
+      <label>金额（元） <input type="number" id="tr-amount" min="0.01" step="0.01" placeholder="0.00" /></label>
+      <label>日期 <input type="date" id="tr-date" /></label>
+      <label>备注 <input type="text" id="tr-note" maxlength="50" placeholder="选填，如：信用卡还款 / 提现" /></label>
+      <div class="modal-error" id="tr-error"></div>
+      <div class="modal-actions">
+        <button class="btn" id="tr-cancel">取消</button>
+        <button class="btn btn-primary" id="tr-ok">确认转账</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新手引导（首次进入自动播放，可跳过、可在报表页再次查看） -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" aria-label="新手引导" id="onboarding-mask">
+    <div class="modal onboarding-modal">
+      <div class="onboarding-icon" id="ob-icon">💼</div>
+      <div class="onboarding-dots" id="ob-dots"></div>
+      <div class="onboarding-step-title" id="ob-title"></div>
+      <div class="onboarding-desc" id="ob-desc"></div>
+      <div class="modal-actions onboarding-actions">
+        <button type="button" class="btn" id="ob-skip">跳过引导</button>
+        <button type="button" class="btn btn-primary" id="ob-next">下一步</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 周期记账：管理弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" aria-label="周期记账" id="recurring-list-mask">
+    <div class="modal modal-lg">
+      <div class="modal-title">周期记账</div>
+      <p class="muted" style="margin-bottom:12px">设置按天 / 周 / 月 / 年自动重复的收支（如房租、工资、会员订阅）。到期时打开账本会列出明细让你确认入账，不会自动偷偷记账。</p>
+      <div id="recurring-list-body"></div>
+      <button type="button" class="btn btn-primary btn-block" id="btn-recurring-add">＋ 新建周期账单</button>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary btn-block" id="recurring-list-close">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 周期记账：模板编辑弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" aria-label="编辑周期账单" id="recurring-edit-mask">
+    <div class="modal">
+      <div class="modal-title" id="re-title">新建周期账单</div>
+      <div class="seg" id="re-type-seg">
+        <button type="button" class="seg-btn active" data-type="expense">支出</button>
+        <button type="button" class="seg-btn" data-type="income">收入</button>
+      </div>
+      <label>金额（元） <input type="number" id="re-amount" min="0.01" step="0.01" placeholder="0.00" /></label>
+      <label>分类 <input type="text" id="re-category" maxlength="10" placeholder="如：房租 / 工资" /></label>
+      <div class="cfg-row">
+        <label>重复频率
+          <select id="re-frequency">
+            <option value="daily">每天</option>
+            <option value="weekly">每周</option>
+            <option value="monthly" selected>每月</option>
+            <option value="yearly">每年</option>
+          </select>
+        </label>
+        <label>间隔（每 N 期） <input type="number" id="re-interval" min="1" max="365" value="1" /></label>
+      </div>
+      <label>资金账户 <select id="re-account"><!-- JS 填充 --></select></label>
+      <div class="cfg-row">
+        <label>开始日期 <input type="date" id="re-start" /></label>
+        <label>结束日期（选填） <input type="date" id="re-end" /></label>
+      </div>
+      <label>备注 <input type="text" id="re-note" maxlength="50" placeholder="选填" /></label>
+      <div class="modal-error" id="re-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="re-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="re-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 周期记账：到期入账确认弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" aria-label="周期账单到期" id="recurring-due-mask">
+    <div class="modal modal-lg">
+      <div class="modal-title">有周期账单到期</div>
+      <div id="recurring-due-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="due-skip">暂不入账</button>
+        <button type="button" class="btn btn-primary" id="due-confirm">全部入账</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 账单 / 还款提醒弹窗（含提醒设置） -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" aria-label="账单还款提醒" id="reminders-mask">
+    <div class="modal modal-lg">
+      <div class="modal-title">账单 / 还款提醒</div>
+      <div id="reminders-body"></div>
+      <div class="pf-style-panel">
+        <div class="switch-row">
+          <input type="checkbox" id="rm-enabled" />
+          <span>打开账本时提醒近期账单日 / 还款日</span>
+        </div>
+        <div class="cfg-row" style="margin:10px 0 0">
+          <label>提前 <input type="number" id="rm-days" min="0" max="30" style="width:70px;max-width:none" /> 天提醒</label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="reminders-close">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 账户对账弹窗 -->
+  <div class="modal-mask hidden" role="dialog" aria-modal="true" aria-label="账户对账" id="reconcile-mask">
+    <div class="modal modal-lg">
+      <div class="modal-title">账户对账</div>
+      <div id="rc-head" class="rc-head"></div>
+      <div class="cfg-row rc-values">
+        <div class="rc-val"><span class="rc-val-label">账面值</span><span id="rc-system">0.00</span></div>
+        <div class="rc-val"><span class="rc-val-label">实际盘点</span>
+          <input type="number" id="rc-actual" min="0" step="0.01" style="width:130px;max-width:none" /></div>
+        <div class="rc-val"><span class="rc-val-label">差额</span><span id="rc-diff">0.00</span></div>
+      </div>
+      <div class="modal-error" id="rc-error"></div>
+      <div class="rc-history-wrap">
+        <div class="rc-history-title">该账户对账历史</div>
+        <div id="rc-history"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="rc-mark">仅标记已对账</button>
+        <button type="button" class="btn btn-primary" id="rc-adjust">记一笔调整并完成</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="vendor/echarts.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

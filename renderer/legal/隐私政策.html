@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>财账簿 隐私政策</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei","PingFang SC",system-ui,-apple-system,sans-serif; color:#1f2329; line-height:1.75; max-width:880px; margin:0 auto; padding:32px 26px; background:#fff; }
+  h1 { font-size:25px; margin:0 0 6px; }
+  h2 { font-size:18px; border-left:4px solid #d9480f; padding-left:11px; margin:30px 0 10px; }
+  h3 { font-size:15px; margin:18px 0 6px; }
+  p { margin:8px 0; }
+  ul { padding-left:22px; margin:8px 0; }
+  li { margin:5px 0; }
+  .meta { color:#646a73; font-size:13px; background:#f5f6f8; padding:12px 16px; border-radius:8px; }
+  .key { background:#fff0e6; border:1px solid #ffd8b8; border-radius:8px; padding:13px 17px; margin:14px 0; }
+  table { border-collapse:collapse; width:100%; margin:12px 0; font-size:14px; }
+  th,td { border:1px solid #e5e7eb; padding:8px 11px; text-align:left; vertical-align:top; }
+  th { background:#f5f6f8; }
+  .foot { margin-top:38px; color:#646a73; font-size:13px; border-top:1px solid #e5e7eb; padding-top:16px; }
+  a { color:#d9480f; }
+</style>
+</head>
+<body>
+  <h1>财账簿 隐私政策</h1>
+  <div class="meta">生效日期：2026 年 9 月 21 日　|　适用软件：财账簿（V1.0.0 及以后版本）</div>
+
+  <div class="key">财账簿是一款<strong>纯本地</strong>的个人记账与财务管理软件。您的账本、流水、账户等财务数据<strong>仅保存在您自己的电脑中，不会被上传到我们的服务器</strong>。请您在使用前仔细阅读本政策。</div>
+
+  <h2>一、我们如何对待您的信息</h2>
+  <p>我们高度重视您的财务隐私。软件的设计原则是“数据本地化、最小化收集”：</p>
+  <ul>
+    <li>您创建的账号（用户名、密码校验信息）仅保存在本机；</li>
+    <li>您记录的全部账本、流水、资金账户、转账、预算、头像与个人资料等数据，均保存在本机，不向我们上传；</li>
+    <li>软件没有用于收集您财务明细的后台服务器。</li>
+  </ul>
+
+  <h2>二、本地存储的内容</h2>
+  <p>在 Windows 上，软件数据默认保存在当前用户的应用数据目录下（<code>AppData\Roaming\财账簿</code>），主要包括：</p>
+  <table>
+    <tr><th>数据类别</th><th>用途</th><th>存储位置</th></tr>
+    <tr><td>账号与登录信息</td><td>本地登录、身份校验</td><td>本机</td></tr>
+    <tr><td>账本与财务数据</td><td>记账、统计、预算、对账等全部功能</td><td>本机</td></tr>
+    <tr><td>头像与个人资料</td><td>个人化展示</td><td>本机</td></tr>
+    <tr><td>设置与窗口状态</td><td>记住您的偏好</td><td>本机</td></tr>
+    <tr><td>本地诊断日志</td><td>排查异常（仅在本机）</td><td>本机</td></tr>
+  </table>
+
+  <h2>三、自动登录与系统安全凭据</h2>
+  <p>当您主动开启“自动登录”时，软件会借助操作系统提供的凭据保护能力（Windows DPAPI）在本机安全地保存登录凭据，使您下次启动时可免输入密码进入。该凭据受当前 Windows 用户保护，不会被上传，您可随时关闭自动登录。</p>
+
+  <h2>四、加密备份</h2>
+  <p>软件支持对账本导出加密备份（采用 AES-256-GCM 加密）。备份密码与备份内容均不离开您的电脑；加密后的备份文件由您自行选择位置保存。没有正确密码将无法解密备份，请您妥善保管备份密码与备份文件。</p>
+
+  <h2>五、网络访问的情形</h2>
+  <p>核心记账功能无需联网。仅在以下情形会产生网络访问，且均由您主动触发或可在设置中管理：</p>
+  <h3>1. 自动更新（可选择是否使用）</h3>
+  <p>当您主动检查更新时，软件会向公开发布平台（代码托管网站 GitHub）请求版本信息与安装包。此过程中该平台可能获知您的网络地址（IP）、请求时间与基础的客户端信息，具体以该平台的隐私规则为准。您也可以不使用更新功能，继续使用当前版本。</p>
+  <h3>2. 崩溃诊断（默认关闭，可随时开关）</h3>
+  <p>崩溃诊断上报<strong>默认处于关闭状态</strong>。仅在您手动开启后，软件发生异常时才会将诊断信息（如错误堆栈、操作系统与软件版本、出错时的运行环境）发送到您所配置或软件指定的接收地址；诊断信息<strong>不包含您的账本与财务明细</strong>。无论是否上报，异常信息都会在本机留存日志。您可在设置中随时关闭上报或删除本地日志。</p>
+
+  <h2>六、数据安全</h2>
+  <p>我们通过以下方式保护您的本地数据：登录密码以加盐哈希方式校验；加密备份采用 AES-256-GCM；数据写入采用原子写入（先写临时文件再替换），并具备损坏检测、隔离与自愈能力，以降低断电、崩溃导致文件损坏的风险。</p>
+
+  <h2>七、信息的共享、转让与公开披露</h2>
+  <p>我们不会向任何第三方出售、共享或转让您的财务数据。除本政策第五条所述、由您主动触发的更新平台或（在您开启后的）诊断接收方外，不存在其他对外提供的情形。</p>
+
+  <h2>八、您的权利</h2>
+  <ul>
+    <li>访问、更正、补充您的个人资料与账本数据；</li>
+    <li>通过导出加密备份获取并迁移您的数据；</li>
+    <li>删除账本、注销或重置本机账号；</li>
+    <li>关闭自动登录、关闭崩溃诊断上报；</li>
+    <li>卸载软件或删除本地数据目录以清除相关信息（删除前请先备份）。</li>
+  </ul>
+
+  <h2>九、未成年人</h2>
+  <p>软件面向一般成年人的个人财务管理。若您为未成年人，请在监护人指导下使用，并妥善保管账号与密码。</p>
+
+  <h2>十、本政策的更新</h2>
+  <p>当软件功能发生变化时，我们可能更新本政策，并在软件内或发布页面提示。更新后的政策自公布之日起生效。</p>
+
+  <h2>十一、联系我们</h2>
+  <p>如您对本政策或个人信息保护有任何疑问、意见或投诉，可通过以下方式联系开发者：<a href="mailto:Oraice@163.com">Oraice@163.com</a>。</p>
+
+  <div class="foot">本政策为财账簿软件的组成部分，与《用户协议》共同构成您使用软件的相关约定。</div>
+</body>
+</html>
